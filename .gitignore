@@ -1,0 +1,8 @@
+docs/server-info.txt
+capstone-key
+*.pem
+*.csv
+*.tfstate
+*.tfstate.backup
+.terraform/
+csvS
