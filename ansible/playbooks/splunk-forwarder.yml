@@ -1,0 +1,54 @@
+---
+- name: Install Splunk Universal Forwarder on Legacy Server
+  hosts: legacy_server
+  become: yes
+
+  vars:
+    splunk_forwarder_version: "9.1.2"
+    splunk_server_ip: "32.197.195.163"
+    splunk_server_port: "9997"
+
+  tasks:
+    - name: Download Splunk Universal Forwarder
+      get_url:
+        url: "https://download.splunk.com/products/universalforwarder/releases/{{ splunk_forwarder_version }}/linux/splunkforwarder-{{ splunk_forwarder_version }}-b6b9c8185839-Linux-x86_64.tgz"
+        dest: /tmp/splunkforwarder.tgz
+
+    - name: Extract Splunk Forwarder
+      unarchive:
+        src: /tmp/splunkforwarder.tgz
+        dest: /opt
+        remote_src: yes
+
+    - name: Start and accept license
+      command: /opt/splunkforwarder/bin/splunk start --accept-license --answer-yes --no-prompt
+      args:
+        creates: /opt/splunkforwarder/var/run/splunk/splunkd.pid
+
+    - name: Configure forwarder to send to Splunk server
+      command: >
+        /opt/splunkforwarder/bin/splunk add forward-server
+        {{ splunk_server_ip }}:{{ splunk_server_port }}
+        -auth admin:changeme
+      ignore_errors: yes
+
+    - name: Add syslog monitor
+      command: >
+        /opt/splunkforwarder/bin/splunk add monitor /var/log/syslog
+        -index syslog
+        -auth admin:changeme
+      ignore_errors: yes
+
+    - name: Add auth log monitor
+      command: >
+        /opt/splunkforwarder/bin/splunk add monitor /var/log/auth.log
+        -index syslog
+        -auth admin:changeme
+      ignore_errors: yes
+
+    - name: Enable boot-start
+      command: /opt/splunkforwarder/bin/splunk enable boot-start -user ubuntu
+      ignore_errors: yes
+
+    - name: Restart forwarder
+      command: /opt/splunkforwarder/bin/splunk restart
